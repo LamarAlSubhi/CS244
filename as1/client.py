@@ -71,10 +71,10 @@ def run():
 
         # initialize log
         os.makedirs("logs", exist_ok=True)
-        LOG = f"logs/client_{LABEL}_p{PAYLOAD}_i{INTERVAL}_c{COUNT}_offset{offset}.csv"
+        LOG = f"logs/client_{LABEL}_p{PAYLOAD}_i{INTERVAL}_c{COUNT}.csv"
         f = open(LOG, "w", newline="")
         w = csv.writer(f)
-        w.writerow(["seq","time_sent","time_received","delay","payload_bytes"])
+        w.writerow(f["seq","time_sent","time_received","delay(offset={offset})","payload_bytes"])
 
         next_send = time.time()
         for seq in range(COUNT):  # 0 to COUNT-1
@@ -90,12 +90,12 @@ def run():
             
             # SEND
             s.sendall((msg + "\n").encode())
-            print(f"[CLIENT] sent: {msg}")
+            # print(f"[CLIENT] sent: {msg}")
             payload_bytes = len(msg.encode())
             
             # RECIEVE
             reply = s.recv(1024).decode().strip()
-            print(f"[CLIENT] recv: {reply}")
+            # print(f"[CLIENT] recv: {reply}")
 
             # parse time_receieved from reply and compute OWD = time_recieved - (time_sent + time_desync)
             parts = reply.split(",", 2)
@@ -105,7 +105,7 @@ def run():
 
             # append a CSV row here for analysis
             w.writerow([seq, f"{t0}", f"{t1}", f"{OWD}", f"{payload_bytes}"])
-            print(f"[CLIENT] seq={seq} OWD={OWD:.3f} ns")
+            # print(f"[CLIENT] seq={seq} OWD={OWD:.3f} ns")
 
             next_send += INTERVAL/ 1000.0
 
