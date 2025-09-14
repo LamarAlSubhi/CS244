@@ -57,27 +57,5 @@ def run():
                 print(reply)
 
 
-        # WITH BUFFER
-        # with conn:
-        #     r = conn.makefile("r", buffering=1, encoding="utf-8", newline="\n")
-        #     w = conn.makefile("w", buffering=1, encoding="utf-8", newline="\n")
-
-        #     for line in r:
-        #         line = line.strip()
-        #         if not line:
-        #             continue
-
-        #         # SYNC HERE?
-
-        #         # client should send BOOP,{seq},time_sent={time_sent}
-        #         parts = line.split(",", 2)
-        #         #ignore BOOP
-        #         seq = parts[1]
-        #         time_recieved = time.time()  # server receive timestamp
-
-        #         # Reply with ACK carrying t1 so the client can compute OWD
-        #         w.write(f"ACK,{seq},time_received={time_recieved:.9f}\n")
-        #         w.flush()
-
 if __name__ == "__main__":
     run()
