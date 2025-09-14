@@ -1,4 +1,4 @@
-import socket, time, argparse, csv
+import socket, time, argparse, csv, os
 
 
 def parse_args():
@@ -69,11 +69,11 @@ def run():
         # SYNC HERE
         offset = sync(s)
 
+        # initialize log
+        os.makedirs("logs", exist_ok=True)
         LOG = f"logs/client_{LABEL}_p{PAYLOAD}_i{INTERVAL}_c{COUNT}_offset{offset}.csv"
-
         f = open(LOG, "w", newline="")
         w = csv.writer(f)
-
         w.writerow(["seq","time_sent","time_received","delay","payload_bytes"])
 
         next_send = time.time()
@@ -98,10 +98,10 @@ def run():
             print(f"[CLIENT] recv: {reply}")
 
             # parse time_receieved from reply and compute OWD = time_recieved - (time_sent + time_desync)
-            parts = reply.split(",")
+            parts = reply.split(",", 2)
             seq = int(parts[1])
             t1 = float(parts[2].split("t1=", 1)[1])
-            OWD = t1 - (t0)
+            OWD = (t1 - offset) - t0
 
             # append a CSV row here for analysis
             w.writerow([seq, f"{t0}", f"{t1}", f"{OWD}", f"{payload_bytes}"])
