@@ -12,5 +12,19 @@
 - Troubleshooting
 - Why are peaks happening, expected answer, i searched and this is
 
+## How to Run Scripts:
 
-## How to Run
+### client.py
+- required arguments: --host
+- optional arguemnts: 
+    - --port: port used
+    - --label: Wifi or eth
+    - --payload: an estimate of the message size you want 
+    - --interval: how often to send messages in milliseconds 
+    - --count: total number of messages to send
+- example: python3 server.py --host 192.168.8.30 --port 5001 --label wifi --payload 64 --interval 100 --count 50
+
+### server.py
+- required arguments: --host 
+- optional arguemnts: --port 
+- example: python3 server.py --host 192.168.8.30 --port 5001 

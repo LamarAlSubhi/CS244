@@ -4,9 +4,10 @@ import socket, time, datetime, argparse
 # "both wired and wireless interfaces (e.g., eth0 vs wlan0)"
 def parse_args():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--host", required=True, help="server IP (Wi-Fi or Ethernet)")
+    ap.add_argument("--host", required=True, help="server IP")
     ap.add_argument("--port", type=int, default=5001)   
     return ap.parse_args()
+
 
 def run():
     args = parse_args()
@@ -40,13 +41,20 @@ def run():
                 if not line:
                     continue
 
-                # client should send BOOP,{seq},time_sent={time_sent},{padding}
-                parts = line.split(",", 3)
-
+                # client should send BOOP,{seq},t0={t0},{padding}
+                # or SYNC,{round},t0={t0}
+                parts = line.split(",", 2)
+                t1 = time.time_ns()  # server receive time
                 seq = parts[1]
-                time_recieved = time.time_ns()  # server receive time
-                reply = f"ACK,{seq},time_received={time_recieved:.9f}"
+
+                if parts[0] == "SYNC":
+                    reply = f"SYNC_ACK,{seq},t1={t1}"
+                    
+                else:
+                    
+                    reply = f"ACK,{seq},t1={t1}"
                 conn.sendall((reply+"\n").encode())
+                print(reply)
 
 
         # WITH BUFFER
