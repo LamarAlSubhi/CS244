@@ -74,7 +74,7 @@ def run():
         LOG = f"logs/client_{LABEL}_p{PAYLOAD}_i{INTERVAL}_c{COUNT}.csv"
         f = open(LOG, "w", newline="")
         w = csv.writer(f)
-        w.writerow(f["seq","time_sent","time_received","delay(offset={offset})","payload_bytes"])
+        w.writerow(["seq","time_sent","time_received",f"delay(offset={offset})","payload_bytes"])
 
         next_send = time.time()
         for seq in range(COUNT):  # 0 to COUNT-1
