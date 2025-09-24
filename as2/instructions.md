@@ -34,43 +34,36 @@ You are expected to test each TCP flavor over:
     - Wired and wireless connections
     - Varying background traffic or link conditions
     - Different geographical iPerf server locations
-You may use monitoring tools such as netstat, ss, tcptrace, or logging in iPerf3 for
-visualization.
-Assignment
+You may use monitoring tools such as netstat, ss, tcptrace, or logging in iPerf3 for visualization.
+
 Your goal is to investigate the effect of different TCP congestion control strategies under
 diverse network conditions.
-You must complete the following tasks:
+
+## You must complete the following tasks:
 1. Throughput Comparison:
-o Use iPerf to generate traffic using each TCP flavor (BBR, CUBIC, Reno,
-Vegas).
-o Record and plot TCP throughput over time on both wired and wireless
-interfaces.
-o Explain the observed differences based on the nature of each algorithm.
+    - Use iPerf to generate traffic using each TCP flavor (BBR, CUBIC, Reno, Vegas).
+    - Record and plot TCP throughput over time on both wired and wireless interfaces.
+    - Explain the observed differences based on the nature of each algorithm.
 2. Delay Analysis:
-o Measure and plot end-to-end delay (e.g., using owping, ping, or iPerf
-delay stats).
-o Compare the delay performance of each TCP algorithm under wired and
-wireless conditions.
-o Discuss how delay control (especially in TCP Vegas and BBR) affects
-performance.
+    - Measure and plot end-to-end delay (e.g., using owping, ping, or iPerf delay stats).
+    - Compare the delay performance of each TCP algorithm under wired and wireless conditions.
+    - Discuss how delay control (especially in TCP Vegas and BBR) affects performance.
 3. Congestion Window Observation:
-o Plot the evolution of the congestion window (CWND) for each TCP flavor.
-o Try to infer CWND behavior using ss -ti or kernel tracing utilities.
-o Provide one consolidated figure comparing all CWND traces.
+    - Plot the evolution of the congestion window (CWND) for each TCP flavor.
+    - Try to infer CWND behavior using ss -ti or kernel tracing utilities.
+    - Provide one consolidated figure comparing all CWND traces.
 4. Best Performing TCP Flavor:
-o From your data, identify the optimal TCP flavor in terms of throughput,
-delay, and stability.
-o Provide justification supported by plots and statistics.
-Deliverables
+    - From your data, identify the optimal TCP flavor in terms of throughput, delay, and stability.
+    - Provide justification supported by plots and statistics.
+
+## Deliverables
 You are expected to demonstrate the network behavior and performance metrics as
 follows:
-• Submit by email to the instructor:
-o All scripts or configuration files used to run your experiments in a
-readme.txt file
-o Output files (logs, CSVs, plots)
-o A README file describing your testing setup, interface configurations, and
-algorithm workflow
-• A 5–8 slide presentation that:
-o Summarizes methodology
-o Shows comparative plots and performance insights
-o Presents key takeaways and limitations
+- Submit by email to the instructor:
+    - All scripts or configuration files used to run your experiments in a readme.txt file
+    - Output files (logs, CSVs, plots)
+    - A README file describing your testing setup, interface configurations, and algorithm workflow
+- A 5–8 slide presentation that:
+    - Summarizes methodology
+    - Shows comparative plots and performance insights
+    - Presents key takeaways and limitations
