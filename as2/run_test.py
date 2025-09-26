@@ -1,5 +1,5 @@
 """
-— runs one experiment run based on a plan row in metadata.csv
+— runs one experiment run based on a plan row in runs.csv
 - looks up run parameters by --run-id from a CSV
 - runs the iperf3 client (JSON), parallel ping, and CWND snapshots (ss -ti)
 - saves those three raw logs plus a meta.json with the resolved labels
@@ -102,12 +102,12 @@ def main():
     ap.add_argument("--server", required=True, help="receiver IP")
     ap.add_argument("--run-id", required=True, help="run ID to execute (e.g., 17)")
     ap.add_argument("--duration", type=int, default=60, help="seconds (default 60)")
-    ap.add_argument("--plan", default="metadata.csv", help="CSV plan file with run descriptions")
+    ap.add_argument("--file", default="runs.csv", help="CSV plan file with run descriptions")
     ap.add_argument("--outdir", default="logs", help="directory to write logs")
     args = ap.parse_args()
 
     # STEP1: read run_id from args and find the run row from metadata.csv
-    plan = read_plan_row(args.plan, args.run_id)
+    plan = read_plan_row(args.file, args.run_id)
     scenario   = (plan.get("scenario") or "").strip()
     link_setup = (plan.get("link_setup") or "").strip()
     tcp_flavor = (plan.get("tcp_flavor") or "").strip()
