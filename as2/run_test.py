@@ -156,7 +156,7 @@ def main():
         json.dump(meta, f, indent=2)
 
 
-        ## COMMENT HEERERRREEEEEE
+    # STEP4: run iperf while sending pings/boops in to calculate rrt while also sampling cwnd
 
     print(f" Running run #{args.run_id}: {scenario} / {link_setup} / {tcp_flavor} / {background} / bidir={'yes' if bidir_flag else 'no'} / trial={trial}")
     print(f" Active kernel congestion control: {meta['tcp_flavor_active']} (claimed: {tcp_flavor})")
@@ -179,8 +179,9 @@ def main():
         boop_p.terminate()
     except Exception:
         pass
-    
 
+    # STEP5: save everything
+    
     print(f"iperf3 exit code: {iperf_rc}")
     print("Saved:")
     for p in (iperf_json, rtt_txt, cwnd_txt, meta_txt):
