@@ -9,9 +9,7 @@ how to use:
   iperf3 -s
 
   # sender (Linux Omen):
-  python3 run_test.py \
-    --server  \
-    --run-id  \
+  python3 run_test.py  --server {ip} --run-id {id}
 """
 import argparse
 import csv

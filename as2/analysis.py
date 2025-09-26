@@ -6,7 +6,7 @@ inputs (using --run-id prefix):
   <run_id>_cwnd.txt
 
 outputs:
-  <run_id>_throughput.csv  (time_s,throughput_Mbps,retrans)
+  <run_id>_throughput.csv  (time_s,throughput_mbps,retrans)
   <run_id>_rtt.csv         (time_s,rtt_ms)
   <run_id>_cwnd.csv        (time_s,cwnd_bytes,rtt_ms,bytes_in_flight)
   <run_id>_throughput.png
@@ -14,7 +14,9 @@ outputs:
   <run_id>_cwnd.png
   appends one metadata summary row to results.csv
 
-example:
+how to use:
+  (only after ensuring that the inputs <run_id>_iperf.json, <run_id>_rtt.txt, <run_id>_cwnd.txt exist)
+  python3 analysis.py --run-id {id}
 
 
 """
