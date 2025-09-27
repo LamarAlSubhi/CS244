@@ -125,45 +125,37 @@ def parse_rtt_txt(path):
 
 
 def parse_cwnd_txt(cwnd_txt_path):
-    """
-    """
     rows = []
-    cur = {"cwnd_bytes": None, "rtt_ms": None, "bytes_in_flight": None}
+    cur = {"cwnd_bytes": None, "rtt_ms": None}
 
     def flush_snapshot(t_index):
-        # record a row only if we captured at least one useful field
         if any(v is not None for v in cur.values()):
-            rows.append([float(t_index), cur["cwnd_bytes"], cur["rtt_ms"], cur["bytes_in_flight"]])
-    re_cwnd = re.compile(r"\bcwnd:(\d+)\b")
-    re_rtt  = re.compile(r"\brtt:([0-9]+(?:\.[0-9]+)?)")   # take the first number before the slash
-    re_bif  = re.compile(r"\bbytes_(?:in_?flight|inflight):(\d+)\b")  # handles both spellings
+            rows.append([float(t_index), cur["cwnd_bytes"], cur["rtt_ms"]])
 
-    # treat a blank line or a new tcp line as a boundary
+    re_cwnd = re.compile(r"\bcwnd:(\d+)\b")
+    re_rtt  = re.compile(r"\brtt:([0-9]+(?:\.[0-9]+)?)")  # first number before slash
+
     t_index = 0
     with open(cwnd_txt_path, "r", encoding="utf-8", errors="ignore") as f:
         for raw in f:
             line = raw.strip()
             if not line:
-                # boundary between snapshots
                 flush_snapshot(t_index)
-                cur = {"cwnd_bytes": None, "rtt_ms": None, "bytes_in_flight": None}
+                cur = {"cwnd_bytes": None, "rtt_ms": None}
                 t_index += 1
                 continue
 
-            # try to extract tokens from the line (may collect across multiple lines in a block)
             m = re_cwnd.search(line)
-            if m: cur["cwnd_bytes"] = int(m.group(1))
+            if m:
+                cur["cwnd_bytes"] = int(m.group(1))
 
             m = re_rtt.search(line)
-            if m: cur["rtt_ms"] = float(m.group(1))
-
-            m = re_bif.search(line)
-            if m: cur["bytes_in_flight"] = int(m.group(1))
+            if m:
+                cur["rtt_ms"] = float(m.group(1))
 
         # flush last block if file didn’t end with a blank line
         flush_snapshot(t_index)
 
-    # compute summary stats
     cw_vals = [r[1] for r in rows if r[1] is not None]
     cw_med = float(np.median(cw_vals)) if cw_vals else 0.0
     cw_p95 = float(np.percentile(cw_vals, 95)) if cw_vals else 0.0
@@ -196,7 +188,7 @@ def main():
 
     # STEP3: get cwnd averages
     cwnd_rows, cw_med, cw_p95 = parse_cwnd_txt(cwnd_txt)
-    write_csv(base + '_cwnd.csv', ['time_s','cwnd_bytes','rtt_ms','bytes_in_flight'], cwnd_rows)
+    write_csv(base + '_cwnd.csv', ['time_s','cwnd_bytes','rtt_ms'], cwnd_rows)
 
 
     # STEP4: plot
