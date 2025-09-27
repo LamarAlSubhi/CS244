@@ -175,7 +175,7 @@ def main():
         "tcp_flavor_claimed": tcp_flavor,
         "tcp_flavor_active": active_cc(),
         "background": background,
-        "bidir": "yes" if bg_cfg["bidir"] else "no",
+        "bidir": "yes" if bidir_flag else "no",
         "trial": trial,
         "duration": args.duration,
         "server_ip": args.server,
