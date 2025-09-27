@@ -17,9 +17,35 @@ import json
 import os
 import shlex
 import subprocess
-import sys
+import re
 import time
 from typing import Dict
+
+
+def truthy(s: str) -> bool:
+    return str(s).strip().lower() in ("yes","true","1","y")
+
+def parse_background(background: str):
+    """
+    Accepts:
+      none
+      heavy
+      heavy-bidir (alias: bidir-heavy)
+      heavy:16        -> 16 flows
+      heavy:16@5205   -> 16 flows on port 5205
+    Returns dict(enabled, flows, port, bidir)
+    """
+    bg = (background or "").strip().lower()
+    if bg in ("", "none", "no", "off"):
+        return {"enabled": False, "flows": 0, "port": 5203, "bidir": False}
+    flows = 8
+    port = 5203
+    bidir = ("bidir" in bg)
+    m = re.search(r":(\d+)", bg)
+    if m: flows = max(1, int(m.group(1)))
+    m = re.search(r"@(\d+)", bg)
+    if m: port = int(m.group(1))
+    return {"enabled": True, "flows": flows, "port": port, "bidir": bidir}
 
 def active_cc() -> str:
     try:
@@ -62,41 +88,32 @@ def start_rtt(server: str, duration: int, out_path: str) -> subprocess.Popen:
         return subprocess.Popen(shlex.split(cmd), stdout=f, stderr=subprocess.STDOUT)
 
 
-def start_iperf(server: str, duration: int, bidir: bool, out_path: str) -> subprocess.Popen:
-    """
-        note that subprocess.Popen runs a command in the background (no wait)
-    """
-    base = f"iperf3 -J -c {server} -t {duration}"
+def start_iperf(server: str, duration: int, bidir: bool, out_path: str, port: int = 5201) -> subprocess.Popen:
+    base = f"iperf3 -J -c {server} -t {duration} -p {port}"
     if bidir:
         base += " --bidir"
     with open(out_path, "w") as f:
         return subprocess.Popen(shlex.split(base), stdout=f, stderr=subprocess.STDOUT)
 
+def start_background_tcp(server: str, duration: int, port: int, flows: int, bidir: bool) -> subprocess.Popen:
+    cmd = f"iperf3 -c {server} -t {duration} -p {port} -P {flows}"
+    if bidir:
+        cmd += " --bidir"
+    return subprocess.Popen(shlex.split(cmd), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-def sample_cwnd(dst_ip: str, duration: int, out_path: str) -> None:
-    """
-        takes a snapshot for every second of the duration (default: 60, so 60 snapshots
-        logs the cwnd every second in the out_path for analysis
-
-        note that subprocess.check_output runs a command and waits for it to finish
-    """
-    cmd = [
-        "ss", "-tin", "-f", "inet",
-        "dst", dst_ip, "and", "( dport = :5201 or sport = :5201 )"
-    ]
-
+def sample_cwnd(dst_ip: str, duration: int, out_path: str, fg_port: int = 5201) -> None:
+    cmd = ["ss","-tin","-f","inet","dst", dst_ip, "and", f"( dport = :{fg_port} or sport = :{fg_port} )"]
     end_time = time.time() + duration
     with open(out_path, "w") as f:
         while time.time() < end_time:
-            ts = int(time.time())
-            f.write(f"{ts}\n")
+            ts = int(time.time()); f.write(f"{ts}\n")
             try:
                 subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT, text=True, check=False)
             except Exception as e:
                 f.write(f"(error: {e})\n")
-            f.write("\n")  # blank line to separates snapshots
-            f.flush()
+            f.write("\n"); f.flush()
             time.sleep(1)
+
 
 
 def main():
@@ -106,6 +123,9 @@ def main():
     ap.add_argument("--duration", type=int, default=60, help="seconds (default 60)")
     ap.add_argument("--file", default="runs.csv", help="CSV plan file with run descriptions")
     ap.add_argument("--outdir", default="logs", help="directory to write logs")
+    ap.add_argument("--fg-port", type=int, default=5201, help="foreground iperf3 port")
+    ap.add_argument("--bg-port", type=int, default=5203, help="background iperf3 port (fallback if row doesn't specify)")
+    ap.add_argument("--bg-flows", type=int, default=8, help="default background parallel flows (fallback)")
     args = ap.parse_args()
 
     # STEP1: read run_id from args and find the run row from metadata.csv
@@ -114,8 +134,14 @@ def main():
     link_setup = (plan.get("link_setup") or "").strip()
     tcp_flavor = (plan.get("tcp_flavor") or "").strip()
     background = (plan.get("background") or "").strip()
-    bidir_flag = (plan.get("bidir") or "no").strip() == "yes"
+    bidir_flag = truthy(plan.get("bidir") or "no")
     trial      = (plan.get("trial") or "").strip()
+
+    bg = parse_background(background)
+    if bg["port"] is None:
+        bg["port"] = args.bg_port
+    if bg["flows"] == 0 and bg["enabled"]:
+        bg["flows"] = args.bg_flows
 
     # STEP2: initialize files to hold all info im collecting
     os.makedirs(args.outdir, exist_ok=True)
@@ -149,7 +175,7 @@ def main():
         "tcp_flavor_claimed": tcp_flavor,
         "tcp_flavor_active": active_cc(),
         "background": background,
-        "bidir": "yes" if bidir_flag else "no",
+        "bidir": "yes" if bg_cfg["bidir"] else "no",
         "trial": trial,
         "duration": args.duration,
         "server_ip": args.server,
@@ -171,6 +197,12 @@ def main():
     # iperf can take a sec to establish connection
     time.sleep(1)
 
+    bg_p = None
+    if bg["enabled"]:
+        print(f" Background load: -P {bg['flows']} on port {bg['port']}" + (" --bidir" if bg["bidir"] else ""))
+        bg_p = start_background_tcp(args.server, args.duration, bg["port"], bg["flows"], bidir=bg["bidir"])
+
+
     # cwnd sampling that runs in the background
     sample_cwnd(args.server, args.duration, cwnd_txt)
 
@@ -182,6 +214,10 @@ def main():
         rtt_p.terminate()
     except Exception:
         pass
+
+    if bg_p is not None:
+        try: bg_p.terminate()
+        except: pass
 
     # STEP5: save everything
     
