@@ -94,26 +94,46 @@ def parse_iperf_json(path):
 
 def parse_rtt_txt(path):
     rtt_vals = []
-    ts_pat = re.compile(r'^\[(\d+\.\d+)\]')  # ping -D timestamp
-    val_pat = re.compile(r'time[=<]([\d\.]+)\s*ms')
+    ts_pat   = re.compile(r'^\[(\d+\.\d+)\]')                 # ping -D timestamp
+    val_pat  = re.compile(r'time[=<]([\d\.]+)\s*ms')          # per-echo RTT
+    # summary lines at the end:
+    txrx_pat = re.compile(r'(\d+)\s+packets transmitted,\s+(\d+)\s+received')
+    loss_pat = re.compile(r'([\d\.]+)%\s+packet loss')
+
+    tx = rx = None
+    loss_percent = None
+
     with open(path) as f:
         for line in f:
+            # collect per-echo RTT samples
             m = val_pat.search(line)
-            if not m:
+            if m:
+                rtt = float(m.group(1))
+                ts_match = ts_pat.match(line.strip())
+                ts = float(ts_match.group(1)) if ts_match else None
+                rtt_vals.append((ts, rtt))
                 continue
-            rtt = float(m.group(1))
-            ts_match = ts_pat.match(line.strip())
-            ts = float(ts_match.group(1))
-            rtt_vals.append((ts, rtt))
+
+            # capture the final ping statistics
+            m_txrx = txrx_pat.search(line)
+            if m_txrx:
+                tx, rx = int(m_txrx.group(1)), int(m_txrx.group(2))
+                continue
+
+            m_loss = loss_pat.search(line)
+            if m_loss:
+                loss_percent = float(m_loss.group(1))
+                continue
+
     plain = [v for _, v in rtt_vals]
-    r_mean = statistics.fmean(plain)
-    r_p90  = percentile(sorted(plain), 0.90)
-    r_p95  = percentile(sorted(plain), 0.95)
+    r_mean = statistics.fmean(plain) if plain else float("nan")
+    r_p90  = percentile(sorted(plain), 0.90) if plain else float("nan")
+    r_p95  = percentile(sorted(plain), 0.95) if plain else float("nan")
 
     # build rows with relative time axis
     if rtt_vals and rtt_vals[0][0] is not None:
         t0 = rtt_vals[0][0]
-        rows = [(round(ts - t0, 3), v) for ts, v in rtt_vals]
+        rows = [(round((ts - t0), 3), v) for ts, v in rtt_vals]
     else:
         # fall back to 0.2s spacing if no -D timestamps
         rows, t = [], 0.0
@@ -121,7 +141,11 @@ def parse_rtt_txt(path):
             rows.append((round(t, 3), v))
             t += 0.2
 
-    return rows, r_mean, r_p90, r_p95
+    # if loss % line wasn't present but tx/rx were, compute it
+    if loss_percent is None and tx and tx > 0 and rx is not None:
+        loss_percent = (tx - rx) * 100.0 / tx
+
+    return rows, r_mean, r_p90, r_p95, loss_percent
 
 
 def parse_cwnd_txt(cwnd_txt_path):
@@ -164,70 +188,70 @@ def parse_cwnd_txt(cwnd_txt_path):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="analyze one run's logs into CSVs and plots and append one metadata row")
-    ap.add_argument('--run-id', type=int, required=True)
-    ap.add_argument('--logs-dir', default='logs')
-    ap.add_argument('--file', default='results.csv')
-    ap.add_argument('--runs', default='runs.csv')
-    args = ap.parse_args()
 
-    os.makedirs(args.logs_dir, exist_ok=True)
-    base = os.path.join(args.logs_dir,  f"{int(args.run_id):02d}")
+    # changed it to one time run
 
-    iperf_json = base + '_iperf.json'
-    rtt_txt = base + '_rtt.txt'
-    cwnd_txt = base + '_cwnd.txt'
+    os.makedirs("logs", exist_ok=True)
+    runs_file = "runs.csv" 
+    results_file = "results.csv"
+    for run in range(1, 57):
+    
+        base = os.path.join("logs",  f"{(run):02d}")
 
-    # STEP1: get throughput averages
-    t_series, t_mean, t_p90, t_p95, retrans_total = parse_iperf_json(iperf_json)
-    write_csv(base + '_throughput.csv', ['time_s','throughput_mbps','retrans'], t_series)
+        iperf_json = base + '_iperf.json'
+        rtt_txt = base + '_rtt.txt'
+        cwnd_txt = base + '_cwnd.txt'
 
-    # STEP2: get rtt averages
-    rtt_rows, r_mean, r_p90, r_p95 = parse_rtt_txt(rtt_txt)
-    write_csv(base + '_rtt.csv', ['time_s','rtt_ms'], rtt_rows)
+        # STEP1: get throughput averages
+        t_series, t_mean, t_p90, t_p95, retrans_total = parse_iperf_json(iperf_json)
+        write_csv(base + '_throughput.csv', ['time_s','throughput_mbps','retrans'], t_series)
 
-    # STEP3: get cwnd averages
-    cwnd_rows, cw_med, cw_p95 = parse_cwnd_txt(cwnd_txt)
-    write_csv(base + '_cwnd.csv', ['time_s','cwnd_bytes','rtt_ms'], cwnd_rows)
+        # STEP2: get rtt averages
+        rtt_rows, r_mean, r_p90, r_p95, loss_percent= parse_rtt_txt(rtt_txt)
+        write_csv(base + '_rtt.csv', ['time_s','rtt_ms'], rtt_rows)
+
+        # STEP3: get cwnd averages
+        cwnd_rows, cw_med, cw_p95 = parse_cwnd_txt(cwnd_txt)
+        write_csv(base + '_cwnd.csv', ['time_s','cwnd_bytes','rtt_ms'], cwnd_rows)
 
 
-    # STEP4: plot
-    # throughput
-    if t_series:
-        tx = [r[0] for r in t_series]
-        ty = [r[1] for r in t_series]
-        plot_series(tx, ty, 'time (s)', 'throughput (Mbps)', 'Throughput over time', base + '_throughput.png')
-    # rtt
-    if rtt_rows:
-        rx = [r[0] for r in rtt_rows]
-        ry = [r[1] for r in rtt_rows]
-        plot_series(rx, ry, 'time (s)', 'RTT (ms)', 'RTT over time', base + '_rtt.png')
-    # cwnd
-    if cwnd_rows:
-        cx = [r[0] for r in cwnd_rows]
-        cy = [r[1] if r[1] is not None else math.nan for r in cwnd_rows]
-        plot_series(cx, cy, 'time (s)', 'cwnd (bytes)', 'CWND over time', base + '_cwnd.png')
+        # STEP4: plot
+        # throughput
+        if t_series:
+            tx = [r[0] for r in t_series]
+            ty = [r[1] for r in t_series]
+            plot_series(tx, ty, 'time (s)', 'throughput (Mbps)', 'Throughput over time', base + '_throughput.png')
+        # rtt
+        if rtt_rows:
+            rx = [r[0] for r in rtt_rows]
+            ry = [r[1] for r in rtt_rows]
+            plot_series(rx, ry, 'time (s)', 'RTT (ms)', 'RTT over time', base + '_rtt.png')
+        # cwnd
+        if cwnd_rows:
+            cx = [r[0] for r in cwnd_rows]
+            cy = [r[1] if r[1] is not None else math.nan for r in cwnd_rows]
+            plot_series(cx, cy, 'time (s)', 'cwnd (bytes)', 'CWND over time', base + '_cwnd.png')
 
-    # get row info from runs.csv
-    meta = load_run_metadata(args.run_id, args.runs)
+        # get row info from runs.csv
+        meta = load_run_metadata(run, runs_file)
 
-    meta_cols = [
-        "run_id","scenario","link_setup","tcp_flavor","background","bidir","trial",
-        "mean_throughput_mbps","p90_throughput_mbps","p95_throughput_mbps",
-        "mean_rtt_ms","p90_rtt_ms","p95_rtt_ms",
-        "retrans_total","median_cwnd_bytes","p95_cwnd_bytes"
-    ]
+        meta_cols = [
+            "run_id","scenario","link_setup","tcp_flavor","background","bidir","trial",
+            "mean_throughput_mbps","p90_throughput_mbps","p95_throughput_mbps",
+            "mean_rtt_ms","p90_rtt_ms","p95_rtt_ms",
+            "loss_percent","median_cwnd_bytes","p95_cwnd_bytes"
+        ]
 
-    row = [[
-        meta["run_id"], meta["scenario"], meta["link_setup"], meta["tcp_flavor"],
-        meta["background"], meta["bidir"], meta["trial"],
-        f"{t_mean:.3f}", f"{t_p90:.3f}", f"{t_p95:.3f}",
-        f"{r_mean:.3f}", f"{r_p90:.3f}", f"{r_p95:.3f}",
-        str(retrans_total),
-        f"{cw_med:.0f}", f"{cw_p95:.0f}"
-    ]]
+        row = [[
+            meta["run_id"], meta["scenario"], meta["link_setup"], meta["tcp_flavor"],
+            meta["background"], meta["bidir"], meta["trial"],
+            f"{t_mean:.3f}", f"{t_p90:.3f}", f"{t_p95:.3f}",
+            f"{r_mean:.3f}", f"{r_p90:.3f}", f"{r_p95:.3f}",
+            f"{loss_percent:.6f}"
+            f"{cw_med:.0f}", f"{cw_p95:.0f}"
+        ]]
 
-    write_csv(args.file, meta_cols, row)
+        write_csv(results_file, meta_cols, row)
 
 
 
