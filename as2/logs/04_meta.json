@@ -1,0 +1,14 @@
+{
+  "run_id": "4",
+  "timestamp": "20250927_165218",
+  "scenario": "baseline",
+  "link": "WiFi-WiFi",
+  "tcp_flavor_claimed": "CUBIC",
+  "tcp_flavor_active": "cubic",
+  "background": "none",
+  "bidir": "no",
+  "trial": "B",
+  "duration": 60,
+  "server_ip": "192.168.100.57",
+  "plan_file": "/home/lamar/cs244/as2/runs.csv"
+}

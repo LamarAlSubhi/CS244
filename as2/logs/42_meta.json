@@ -1,0 +1,14 @@
+{
+  "run_id": "42",
+  "timestamp": "20250927_174354",
+  "scenario": "heavyBG",
+  "link": "ETH-WiFi",
+  "tcp_flavor_claimed": "BBR",
+  "tcp_flavor_active": "bbr",
+  "background": "heavy",
+  "bidir": "no",
+  "trial": "B",
+  "duration": 60,
+  "server_ip": "192.168.100.57",
+  "plan_file": "/home/lamar/cs244/as2/runs.csv"
+}

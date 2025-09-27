@@ -1,0 +1,14 @@
+{
+  "run_id": "21",
+  "timestamp": "20250927_171539",
+  "scenario": "lightBG",
+  "link": "WiFi-WiFi",
+  "tcp_flavor_claimed": "Reno",
+  "tcp_flavor_active": "reno",
+  "background": "light",
+  "bidir": "no",
+  "trial": "A",
+  "duration": 60,
+  "server_ip": "192.168.100.57",
+  "plan_file": "/home/lamar/cs244/as2/runs.csv"
+}
