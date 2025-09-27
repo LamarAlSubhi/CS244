@@ -57,7 +57,7 @@
     - This highlights Wi-Fi’s half-duplex nature and how up/down contention interacts with congestion control.
 
 ## TCP Flavors:
-- Reno → Classic, loss-based: reduce window when a packet is lost.
-- CUBIC → Default in Linux: uses a cubic growth function, more aggressive than Reno.
-- Vegas → Delay-based: tries to detect congestion early from RTT increases.
-- BBR → Rate-based: models bottleneck bandwidth + RTT, doesn’t wait for loss.
+- Reno → Classic, loss-based: reduce window when a packet is lost (under-utilizing bandwidth).
+- CUBIC → Default in Linux: uses a cubic growth function, more aggressive than Reno (higher throughput but more delay).
+- Vegas → Delay-based: tries to detect congestion early from RTT increases(lower throughput but lower RTT).
+- BBR → Rate-based: models bottleneck bandwidth + RTT, doesn’t wait for loss (higher throughput but more delay).
