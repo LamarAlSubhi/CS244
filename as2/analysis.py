@@ -22,6 +22,7 @@ how to use:
 """
 
 import argparse, json, os, re, statistics, math, glob
+import numpy as np
 import matplotlib.pyplot as plt
 
 # ---------- helpers ----------
@@ -118,35 +119,50 @@ def parse_rtt_txt(path):
     return rows, r_mean, r_p90, r_p95
 
 
-def parse_cwnd_txt(path):
+def parse_cwnd_txt(cwnd_txt_path):
+    """
+    """
     rows = []
-    cur_ts = None
-    cwnd_pat = re.compile(r'cwnd:(\d+)')
-    rtt_pat  = re.compile(r'rtt:(\d+\.?\d*)')
-    infl_pat = re.compile(r'bytes_inflight:(\d+)')
-    with open(path) as f:
-        for line in f:
-            line = line.strip()
-            if line.isdigit():
-                cur_ts = int(line)
+    cur = {"cwnd_bytes": None, "rtt_ms": None, "bytes_in_flight": None}
+
+    def flush_snapshot(t_index):
+        # record a row only if we captured at least one useful field
+        if any(v is not None for v in cur.values()):
+            rows.append([float(t_index), cur["cwnd_bytes"], cur["rtt_ms"], cur["bytes_in_flight"]])
+    re_cwnd = re.compile(r"\bcwnd:(\d+)\b")
+    re_rtt  = re.compile(r"\brtt:([0-9]+(?:\.[0-9]+)?)")   # take the first number before the slash
+    re_bif  = re.compile(r"\bbytes_(?:in_?flight|inflight):(\d+)\b")  # handles both spellings
+
+    # treat a blank line or a new tcp line as a boundary
+    t_index = 0
+    with open(cwnd_txt_path, "r", encoding="utf-8", errors="ignore") as f:
+        for raw in f:
+            line = raw.strip()
+            if not line:
+                # boundary between snapshots
+                flush_snapshot(t_index)
+                cur = {"cwnd_bytes": None, "rtt_ms": None, "bytes_in_flight": None}
+                t_index += 1
                 continue
-            if cur_ts is None:
-                continue
-            m_c = cwnd_pat.search(line)
-            m_r = rtt_pat.search(line)
-            m_i = infl_pat.search(line)
-            if m_c or m_r or m_i:
-                cw = int(m_c.group(1))
-                rt = float(m_r.group(1))
-                bi = int(m_i.group(1))
-                rows.append((cur_ts, cw, rt, bi))
-    cw_vals = [r[1] for r in rows]
-    cw_med = statistics.median(cw_vals)
-    cw_p95 = percentile(sorted(cw_vals), 0.95)
-    # normalize time
-    if rows:
-        t0 = rows[0][0]
-        rows = [(r[0]-t0, r[1], r[2], r[3]) for r in rows]
+
+            # try to extract tokens from the line (may collect across multiple lines in a block)
+            m = re_cwnd.search(line)
+            if m: cur["cwnd_bytes"] = int(m.group(1))
+
+            m = re_rtt.search(line)
+            if m: cur["rtt_ms"] = float(m.group(1))
+
+            m = re_bif.search(line)
+            if m: cur["bytes_in_flight"] = int(m.group(1))
+
+        # flush last block if file didn’t end with a blank line
+        flush_snapshot(t_index)
+
+    # compute summary stats
+    cw_vals = [r[1] for r in rows if r[1] is not None]
+    cw_med = float(np.median(cw_vals)) if cw_vals else 0.0
+    cw_p95 = float(np.percentile(cw_vals, 95)) if cw_vals else 0.0
+
     return rows, cw_med, cw_p95
 
 
@@ -160,21 +176,21 @@ def main():
     os.makedirs(args.logs_dir, exist_ok=True)
     base = find_base_for_run(args.run_id, args.logs_dir)
 
-    iperf_json = args.base + '_iperf.json'
-    rtt_txt = args.base + '_rtt.txt'
-    cwnd_txt = args.base + '_cwnd.txt'
+    iperf_json = base + '_iperf.json'
+    rtt_txt = base + '_rtt.txt'
+    cwnd_txt = base + '_cwnd.txt'
 
     # STEP1: get throughput averages
     t_series, t_mean, t_p90, t_p95, retrans_total = parse_iperf_json(iperf_json)
-    write_csv(args.base + '_throughput.csv', ['time_s','throughput_mbps','retrans'], t_series)
+    write_csv(base + '_throughput.csv', ['time_s','throughput_mbps','retrans'], t_series)
 
     # STEP2: get rtt averages
     rtt_rows, r_mean, r_p90, r_p95 = parse_rtt_txt(rtt_txt)
-    write_csv(args.base + '_rtt.csv', ['time_s','rtt_ms'], rtt_rows)
+    write_csv(base + '_rtt.csv', ['time_s','rtt_ms'], rtt_rows)
 
     # STEP3: get cwnd averages
     cwnd_rows, cw_med, cw_p95 = parse_cwnd_txt(cwnd_txt)
-    write_csv(args.base + '_cwnd.csv', ['time_s','cwnd_bytes','rtt_ms','bytes_in_flight'], cwnd_rows)
+    write_csv(base + '_cwnd.csv', ['time_s','cwnd_bytes','rtt_ms','bytes_in_flight'], cwnd_rows)
 
 
     # STEP4: plot
@@ -222,29 +238,6 @@ def main():
 ]]
 
     write_csv(args.file, meta_cols, row)
-
-    # After write_csv(...)
-try:
-    import pandas as pd
-    df = pd.read_csv(args.file)
-    num_cols = [
-        'mean_throughput_mbps','p90_throughput_mbps','p95_throughput_mbps',
-        'mean_rtt_ms','p90_rtt_ms','p95_rtt_ms',
-        'retrans_total','median_cwnd_bytes','p95_cwnd_bytes'
-    ]
-    for c in num_cols:
-        df[c] = pd.to_numeric(df[c], errors='coerce')
-    key = ['scenario','link_setup','tcp_flavor','background','bidir']
-    def agg_fn(g):
-        out = {'runs_count': g.shape[0]}
-        for c in num_cols:
-            out[c] = g[c].sum(skipna=True) if c == 'retrans_total' else g[c].mean(skipna=True)
-        return pd.Series(out)
-    agg = df.groupby(key, dropna=False).apply(agg_fn).reset_index()
-    agg[['scenario','link_setup','tcp_flavor','background','bidir','runs_count'] + num_cols] \
-        .to_csv('results_agg.csv', index=False)
-except Exception as e:
-    print("Aggregation skipped:", e)
 
 
 if __name__ == '__main__':

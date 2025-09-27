@@ -81,19 +81,12 @@ def sample_cwnd(dst_ip: str, duration: int, out_path: str) -> None:
         note that subprocess.check_output runs a command and waits for it to finish
     """
     with open(out_path, "w") as f:
-        start = int(time.time())
-        end = start + duration
-        while int(time.time()) < end:
-            ts = int(time.time())
-            f.write(f"{ts}\n")
-            try:
-                out = subprocess.check_output(
-                    shlex.split(f"ss -ti dst {dst_ip}"), text=True
-                )
-                f.write(out)
-            except subprocess.CalledProcessError:
-                f.write("(no sockets matched)\n")
-            f.flush()
+        end = time.time() + duration
+        cmd = ["ss", "-tin", "-f", "inet", "dst", dst_ip, "and", "( dport = :5201 or sport = :5201 )"]
+        while time.time() < end:
+            f.write(str(int(time.time())) + "\n")
+            subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT, text=True)
+            f.write("\n")
             time.sleep(1)
 
 
