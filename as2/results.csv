@@ -1,1 +1,2 @@
 run_id, scenario, link_setup, tcp_flavor, background, bidir, trial, mean_throughput_mbps, p90_throughput_mbps, p95_throughput_mbps, mean_rtt_ms, p90_rtt_ms, p95_rtt_ms, retrans_total, median_cwnd_bytes, p95_cwnd_bytes1,baseline,WiFi-WiFi,BBR,none,no,A,218.293,244.607,249.448,38.818,48.870,54.640,760,7,7
+1,baseline,WiFi-WiFi,BBR,none,no,A,197.022,240.292,243.584,49.648,57.760,82.420,854,13,13
