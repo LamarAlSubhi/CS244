@@ -80,13 +80,22 @@ def sample_cwnd(dst_ip: str, duration: int, out_path: str) -> None:
 
         note that subprocess.check_output runs a command and waits for it to finish
     """
+    cmd = [
+        "ss", "-tin", "-f", "inet",
+        "dst", dst_ip, "and", "( dport = :5201 or sport = :5201 )"
+    ]
+
+    end_time = time.time() + duration
     with open(out_path, "w") as f:
-        end = time.time() + duration
-        cmd = ["ss", "-tin", "-f", "inet", "dst", dst_ip, "and", "( dport = :5201 or sport = :5201 )"]
-        while time.time() < end:
-            f.write(str(int(time.time())) + "\n")
-            subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT, text=True)
-            f.write("\n")
+        while time.time() < end_time:
+            ts = int(time.time())
+            f.write(f"{ts}\n")
+            try:
+                subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT, text=True, check=False)
+            except Exception as e:
+                f.write(f"(error: {e})\n")
+            f.write("\n")  # blank line to separates snapshots
+            f.flush()
             time.sleep(1)
 
 

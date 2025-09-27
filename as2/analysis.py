@@ -21,20 +21,25 @@ how to use:
 
 """
 
-import argparse, json, os, re, statistics, math, glob
+import argparse, json, os, re, statistics, math, csv
 import numpy as np
 import matplotlib.pyplot as plt
 
 # ---------- helpers ----------
-
-def find_base_for_run(run_id: int, logs_dir: str) -> str:
-    pattern = os.path.join(logs_dir, f"{run_id:02d}_iperf.json")
-    candidates = sorted(glob.glob(pattern))
-    
-    iperf_json = candidates[0]
-    base = iperf_json[:-len('_iperf.json')]
-    
-    return base
+def load_run_metadata(run_id: int, runs_csv: str) -> dict:
+    with open(runs_csv, newline="") as f:
+        for row in csv.DictReader(f):
+            if int(row["run_id"]) == run_id:
+                return {
+                    "run_id": str(int(row["run_id"])),
+                    "scenario": row["scenario"],
+                    "link_setup": row["link_setup"],
+                    "tcp_flavor": row["tcp_flavor"],
+                    "background": row["background"],
+                    "bidir": "yes" if row["bidir"].lower() in ("yes","true","1") else "no",
+                    "trial": row["trial"],
+                }
+    raise ValueError(f"run_id {run_id} not found in {runs_csv}")
 
 def write_csv(path, header, rows):
     newfile = not os.path.exists(path)
@@ -171,10 +176,11 @@ def main():
     ap.add_argument('--run-id', type=int, required=True)
     ap.add_argument('--logs-dir', default='logs')
     ap.add_argument('--file', default='results.csv')
+    ap.add_argument('--runs', default='runs.csv')
     args = ap.parse_args()
 
     os.makedirs(args.logs_dir, exist_ok=True)
-    base = find_base_for_run(args.run_id, args.logs_dir)
+    base = os.path.join(args.logs_dir,  f"{int(args.run_id):02d}")
 
     iperf_json = base + '_iperf.json'
     rtt_txt = base + '_rtt.txt'
@@ -198,46 +204,39 @@ def main():
     if t_series:
         tx = [r[0] for r in t_series]
         ty = [r[1] for r in t_series]
-        plot_series(tx, ty, 'time (s)', 'throughput (Mbps)', 'Throughput over time', args.base + '_throughput.png')
+        plot_series(tx, ty, 'time (s)', 'throughput (Mbps)', 'Throughput over time', base + '_throughput.png')
     # rtt
     if rtt_rows:
         rx = [r[0] for r in rtt_rows]
         ry = [r[1] for r in rtt_rows]
-        plot_series(rx, ry, 'time (s)', 'RTT (ms)', 'RTT over time', args.base + '_rtt.png')
+        plot_series(rx, ry, 'time (s)', 'RTT (ms)', 'RTT over time', base + '_rtt.png')
     # cwnd
     if cwnd_rows:
         cx = [r[0] for r in cwnd_rows]
         cy = [r[1] if r[1] is not None else math.nan for r in cwnd_rows]
-        plot_series(cx, cy, 'time (s)', 'cwnd (bytes)', 'CWND over time', args.base + '_cwnd.png')
+        plot_series(cx, cy, 'time (s)', 'cwnd (bytes)', 'CWND over time', base + '_cwnd.png')
 
     # get row info from runs.csv
-    parts = base.split('_')
-    run_id     = parts[0]
-    scenario   = parts[1]
-    link_setup = parts[2]
-    tcp_flavor = parts[3]
-    background = parts[4]
-    bidir      = 'yes' if parts[5]=='bidir' else 'no'
-    trial      = parts[6]
+    meta = load_run_metadata(args.run_id, args.runs)
 
     meta_cols = [
-        'run_id','scenario','link_setup','tcp_flavor','background','bidir','trial',
-        'mean_throughput_mbps','p90_throughput_mbps','p95_throughput_mbps',
-        'mean_rtt_ms','p90_rtt_ms','p95_rtt_ms',
-        'retrans_total','median_cwnd_bytes','p95_cwnd_bytes'
+        "run_id","scenario","link_setup","tcp_flavor","background","bidir","trial",
+        "mean_throughput_mbps","p90_throughput_mbps","p95_throughput_mbps",
+        "mean_rtt_ms","p90_rtt_ms","p95_rtt_ms",
+        "retrans_total","median_cwnd_bytes","p95_cwnd_bytes"
     ]
 
-    # build full row with new analysis
     row = [[
-    run_id, scenario, link_setup, tcp_flavor, background, bidir, trial,
-    f"{t_mean:.3f}", f"{t_p90:.3f}", f"{t_p95:.3f}",
-    f"{r_mean:.3f}", f"{r_p90:.3f}", f"{r_p95:.3f}",
-    str(retrans_total),
-    f"{cw_med:.0f}", f"{cw_p95:.0f}"
-    ''
-]]
+        meta["run_id"], meta["scenario"], meta["link_setup"], meta["tcp_flavor"],
+        meta["background"], meta["bidir"], meta["trial"],
+        f"{t_mean:.3f}", f"{t_p90:.3f}", f"{t_p95:.3f}",
+        f"{r_mean:.3f}", f"{r_p90:.3f}", f"{r_p95:.3f}",
+        str(retrans_total),
+        f"{cw_med:.0f}", f"{cw_p95:.0f}"
+    ]]
 
     write_csv(args.file, meta_cols, row)
+
 
 
 if __name__ == '__main__':
