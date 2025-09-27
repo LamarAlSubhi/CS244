@@ -21,12 +21,6 @@ import sys
 import time
 from typing import Dict
 
-
-def die(msg: str, code: int = 2):
-    print(f"[!] {msg}", file=sys.stderr)
-    sys.exit(code)
-
-
 def active_cc() -> str:
     try:
         out = subprocess.check_output(
@@ -36,6 +30,14 @@ def active_cc() -> str:
         return out
     except Exception:
         return "unknown"
+    
+def set_cc(flavor: str):
+    try:
+        subprocess.check_call(
+            shlex.split(f"sudo sysctl -w net.ipv4.tcp_congestion_control={flavor}")
+        )
+    except subprocess.CalledProcessError as e:
+        print(f"failed to set CC to {flavor}: {e}")
 
 
 def read_plan_row(plan_path: str, run_id: str) -> Dict[str, str]:
@@ -50,12 +52,12 @@ def read_plan_row(plan_path: str, run_id: str) -> Dict[str, str]:
                 return row
 
 
-def start_boop(server: str, duration: int, out_path: str) -> subprocess.Popen:
+def start_rtt(server: str, duration: int, out_path: str) -> subprocess.Popen:
     """ 
         note that subprocess.Popen runs a command in the background (no wait)
     """
     # -D: UNIX ts; -i 0.2: 5 Hz; -w duration: stop after N sec
-    cmd = f"boop -D -i 0.2 -w {duration} {server}"
+    cmd = f"ping -D -i 0.2 -w {duration} {server}"
     with open(out_path, "w") as f:
         return subprocess.Popen(shlex.split(cmd), stdout=f, stderr=subprocess.STDOUT)
 
@@ -118,9 +120,10 @@ def main():
 
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     base_name = (
-        f"{int(args.run_id):02d}_{scenario}_{link_setup}_{tcp_flavor}_"
-        f"{background}_{'bidir' if bidir_flag else 'uni'}_{trial}_{timestamp}"
+        f"{int(args.run_id):02d}"
     )
+
+    set_cc(tcp_flavor.lower())
 
     # hold the actual iperf log 
     iperf_json = os.path.join(args.outdir, f"{base_name}_iperf.json")
@@ -148,7 +151,7 @@ def main():
         "trial": trial,
         "duration": args.duration,
         "server_ip": args.server,
-        "plan_file": os.path.abspath(args.plan),
+        "plan_file": os.path.abspath(args.file),
     }
     with open(meta_txt, "w") as f:
         json.dump(meta, f, indent=2)
@@ -160,7 +163,7 @@ def main():
     print(f" Active kernel congestion control: {meta['tcp_flavor_active']} (claimed: {tcp_flavor})")
 
     # start our ping and iperf servers
-    boop_p  = start_boop(args.server, args.duration, rtt_txt)
+    rtt_p  = start_rtt(args.server, args.duration, rtt_txt)
     iperf_p = start_iperf(args.server, args.duration, bidir_flag, iperf_json)
 
     # iperf can take a sec to establish connection
@@ -174,7 +177,7 @@ def main():
 
     # make sure the ping stopped
     try:
-        boop_p.terminate()
+        rtt_p.terminate()
     except Exception:
         pass
 
