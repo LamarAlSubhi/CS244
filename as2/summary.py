@@ -2,7 +2,6 @@
 this aggregates numbers from trials A and B into 1 representing that scenario
 """
 
-
 import argparse
 from pathlib import Path
 import pandas as pd

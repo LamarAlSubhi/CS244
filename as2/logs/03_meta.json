@@ -1,13 +1,13 @@
 {
-  "run_id": "2",
-  "timestamp": "20250927_133319",
+  "run_id": "3",
+  "timestamp": "20250927_133424",
   "scenario": "baseline",
   "link": "WiFi-WiFi",
-  "tcp_flavor_claimed": "BBR",
-  "tcp_flavor_active": "bbr",
+  "tcp_flavor_claimed": "CUBIC",
+  "tcp_flavor_active": "cubic",
   "background": "none",
   "bidir": "no",
-  "trial": "B",
+  "trial": "A",
   "duration": 60,
   "server_ip": "192.168.100.57",
   "plan_file": "/home/lamar/cs244/as2/runs.csv"
