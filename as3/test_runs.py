@@ -209,6 +209,7 @@ def run_row(row):
     if not bind_ip:
         (outdir / "ERROR.txt").write_text(f"no IPv4 on {iface}")
         print(f"[skip] {runid}-{iface}-{case}: no IPv4 on {iface}")
+        return  # stop the run cleanly
 
     # STEP6: launch collectors
     iperf_p = start_iperf(SERVER_IP, bind_ip, outdir / "iperf.json")
@@ -230,18 +231,22 @@ def run_row(row):
     (outdir / "DONE").write_text(time.strftime("%Y-%m-%d %H:%M:%S"))
     print(f"run {runid}-{iface}-{case} complete")
 
-def main():
-        #initial ping to make sure connection works
+
+
+def test_one():
     _ = run(f"ping -c 1 -W 1 {SERVER_IP}")
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
 
     with open(RUNS_CSV, newline="") as fcsv:
         rdr = csv.DictReader(fcsv)
-
         # runs first row for now
-        run_row(rdr[0])
+        first_row = next(rdr, None)
+        if first_row:
+            run_row(first_row)
      
-
+def main():
+        test_one()
+        
 if __name__ == "__main__":
     main()
