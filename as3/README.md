@@ -24,3 +24,14 @@
 ### what does it mean
 - if kernel queue is short, but the ring is long: the packets will pile up inside the NIC => hidden delay
 - if ring is too short: NIC runs out of packets to send => throughput drops
+
+## plots:
+- throughput
+- CWND RTT
+- loss
+- queue backlog
+- TX/RX errors/drops
+
+
+
+

@@ -1,0 +1,13 @@
+runid,iface,case,txqueuelen,tx_ring,rx_ring
+1,eth0,baseline,1000,256,256
+2,eth0,kernel-small,50,256,256
+3,eth0,kernel-large,2000,256,256
+4,eth0,tx-small,500,64,256
+5,eth0,tx-large,500,512,256
+6,eth0,worst-combo,2000,512,256
+7,wlan0,baseline,1000,256,256
+8,wlan0,kernel-small,50,256,256
+9,wlan0,kernel-large,2000,256,256
+10,wlan0,rx-small,500,256,64
+11,wlan0,rx-large,500,256,512
+12,wlan0,worst-combo,2000,512,512
