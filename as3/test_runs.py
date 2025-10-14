@@ -21,13 +21,17 @@ import re
 import time
 from pathlib import Path
 import threading
+import argparse
 
 
 # ---------- PARAMS  ----------
-SERVER_IP   = "192.168.1.50"
-RUNS_CSV    = "runs.csv"
+SERVER_IP   = "10.240.175.138" # my mac
+WIRED_CSV    = "wired.csv"
+WIRELESS_CSV = "wireless.csv"
 LOGS_DIR    =  Path("/logs")
 
+WIRED_IFACE    = "enp0s3"   # VirtualBox e1000
+WIRELESS_IFACE = "wlo1"   # OMEN host Wi-Fi
 
 # ---------- helpers  ----------
 def run(cmd: str) -> subprocess.CompletedProcess:
@@ -174,79 +178,135 @@ def sample_cwnd(dst_ip: str, out_file: str, fg_port: int = 5201) -> None:
 
 
 
-def run_row(row):
+def run_wired():
     """
-    just a big wrapper
-    
+    runs all of the rows in wired.csv, makes changes to ring sizes
     """
-
-    # STEP1: read row info and initialize folder
-    runid   = row["runid"].strip()
-    iface   = row["iface"].strip()
-    case    = row["case"].strip()
-    txqlen  = int(row["txqueuelen"])
-    tx_ring = int(row["tx_ring"])
-    rx_ring = int(row["rx_ring"])
-
-    outdir = LOGS_DIR / f"{runid}-{iface}-{case}"
-    outdir.mkdir(parents=True, exist_ok=True)
-
-    # STEP2: record initial context
-    (outdir / "row.csv").write_text(",".join(row.keys()) + "\n" + ",".join(row.values()) + "\n")
-    (outdir / "uname.txt").write_text(run("uname -a").stdout)
-    drv = run(f"ethtool -i {iface}")
-    (outdir / "driver.txt").write_text(drv.stdout + drv.stderr)
-
-    # STEP3: apply queueing
-    apply_queue_with_logs(iface, txqlen, outdir)
-
-    # STEP4: apply rings
-    apply_rings_with_logs(iface, tx_ring, rx_ring, outdir)
-
-
-    # STEP5: bind to iface IP
-    bind_ip = iface_ipv4(iface)
-    if not bind_ip:
-        (outdir / "ERROR.txt").write_text(f"no IPv4 on {iface}")
-        print(f"[skip] {runid}-{iface}-{case}: no IPv4 on {iface}")
-        return  # stop the run cleanly
-
-    # STEP6: launch collectors
-    iperf_p = start_iperf(SERVER_IP, bind_ip, outdir / "iperf.json")
-    ping_p  = start_rtt(SERVER_IP, outdir / "ping.txt")
-
-    t_cwnd = threading.Thread(
-        target=sample_cwnd,
-        args=(SERVER_IP, outdir / "ss_cwnd.txt"),
-        kwargs={"fg_port": 5201},
-        daemon=True,
-    )
-    t_cwnd.start()
-
-    iperf_p.wait()
-    ping_p.wait()
-    if t_cwnd.is_alive():
-        t_cwnd.join(timeout=2)
-
-    (outdir / "DONE").write_text(time.strftime("%Y-%m-%d %H:%M:%S"))
-    print(f"run {runid}-{iface}-{case} complete")
-
-
-
-def test_one():
-    _ = run(f"ping -c 1 -W 1 {SERVER_IP}")
-    LOGS_DIR.mkdir(parents=True, exist_ok=True)
-
-
-    with open(RUNS_CSV, newline="") as fcsv:
+    with open(WIRED_CSV, newline="") as fcsv:
         rdr = csv.DictReader(fcsv)
-        # runs first row for now
-        first_row = next(rdr, None)
-        if first_row:
-            run_row(first_row)
-     
+        for row in rdr:
+            # STEP1: read row info and initialize folder
+            runid   = row["runid"].strip()
+            iface   = WIRED_IFACE
+            case    = row["case"].strip()
+            txqlen  = int(row["txqueuelen"])
+            tx_ring = int(row["tx_ring"])
+            rx_ring = int(row["rx_ring"])
+
+
+            outdir = LOGS_DIR / f"{runid}-{iface}-{case}"
+            outdir.mkdir(parents=True, exist_ok=True)
+
+            # STEP2: record initial context
+            (outdir / "row.csv").write_text(",".join(row.keys()) + "\n" + ",".join(row.values()) + "\n")
+            (outdir / "uname.txt").write_text(run("uname -a").stdout)
+            drv = run(f"ethtool -i {iface}")
+            (outdir / "driver.txt").write_text(drv.stdout + drv.stderr)
+
+            # STEP3: apply queueing
+            apply_queue_with_logs(iface, txqlen, outdir)
+
+            # STEP4: apply rings
+            apply_rings_with_logs(iface, tx_ring, rx_ring, outdir)
+
+            # STEP5: bind to iface IP
+            bind_ip = iface_ipv4(iface)
+            if not bind_ip:
+                (outdir / "ERROR.txt").write_text(f"no IPv4 on {iface}")
+                print(f"[skip] {runid}-{iface}-{case}: no IPv4 on {iface}")
+                continue
+
+            # STEP6: launch collectors
+            iperf_p = start_iperf(SERVER_IP, bind_ip, outdir / "iperf.json")
+            ping_p  = start_rtt(SERVER_IP, outdir / "ping.txt")
+
+            t_cwnd = threading.Thread(
+                target=sample_cwnd,
+                args=(SERVER_IP, outdir / "ss_cwnd.txt"),
+                kwargs={"fg_port": 5201},
+                daemon=True,
+            )
+            t_cwnd.start()
+
+            iperf_p.wait()
+            ping_p.wait()
+            if t_cwnd.is_alive():
+                t_cwnd.join(timeout=2)
+
+            (outdir / "DONE").write_text(time.strftime("%Y-%m-%d %H:%M:%S"))
+            print(f"run {runid}-{iface}-{case} complete")
+
+
+
+def run_wireless():
+    """
+    runs all of the rows in wireless.csv, NO RINGS
+    """
+    with open(WIRELESS_CSV, newline="") as fcsv:
+        rdr = csv.DictReader(fcsv)
+        for row in rdr:
+            # STEP1: read row info and initialize folder
+            runid   = row["runid"].strip()
+            iface   = WIRELESS_IFACE
+            case    = row["case"].strip()
+            txqlen  = int(row["txqueuelen"])
+            # NO RINGS SUPPORTED
+
+
+            outdir = LOGS_DIR / f"{runid}-{iface}-{case}"
+            outdir.mkdir(parents=True, exist_ok=True)
+
+            # STEP2: record initial context
+            (outdir / "row.csv").write_text(",".join(row.keys()) + "\n" + ",".join(row.values()) + "\n")
+            (outdir / "uname.txt").write_text(run("uname -a").stdout)
+
+            #redundant tbh but whatevs 
+            drv = run(f"ethtool -i {iface}")
+            (outdir / "driver.txt").write_text(drv.stdout + drv.stderr)
+
+            # STEP3: apply queueing
+            apply_queue_with_logs(iface, txqlen, outdir)
+
+            # skip rings
+
+            # STEP4: bind to iface IP
+            bind_ip = iface_ipv4(iface)
+            if not bind_ip:
+                (outdir / "ERROR.txt").write_text(f"no IPv4 on {iface}")
+                print(f"[skip] {runid}-{iface}-{case}: no IPv4 on {iface}")
+                continue
+
+            # STEP5: launch collectors
+            iperf_p = start_iperf(SERVER_IP, bind_ip, outdir / "iperf.json")
+            ping_p  = start_rtt(SERVER_IP, outdir / "ping.txt")
+
+            t_cwnd = threading.Thread(
+                target=sample_cwnd,
+                args=(SERVER_IP, outdir / "ss_cwnd.txt"),
+                kwargs={"fg_port": 5201},
+                daemon=True,
+            )
+            t_cwnd.start()
+
+            iperf_p.wait()
+            ping_p.wait()
+            if t_cwnd.is_alive():
+                t_cwnd.join(timeout=2)
+
+            (outdir / "DONE").write_text(time.strftime("%Y-%m-%d %H:%M:%S"))
+            print(f"run {runid}-{iface}-{case} complete")
+
+
 def main():
-        test_one()
-        
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", choices=["wired", "wireless"], required=True)
+    args = parser.parse_args()
+
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    if args.mode == "wired":
+        run_wired()
+    else:
+        run_wireless()
+
 if __name__ == "__main__":
     main()

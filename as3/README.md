@@ -35,3 +35,10 @@
 
 ## issues running into: 
 - My omen's driver, r8169 (Realtek), never implemented set_ring, so it doesn’t matter which kernel I use
+- by reinstalling windows i somehow broke my current networkmanager on linux mashallah 3alaya: a stale EFI mount in /etc/fstab forced emergency mode; then a half-installed kernel (6.14.0-33) left /lib/modules empty, so GPU and NIC drivers couldn’t load. Booting the previous kernel (6.14.0-29) and fixing fstab resolved it.
+
+
+## set up:
+- installed virtual box and ra
+- set adapter type as: Intel PRO/1000 MT Desktop (82540EM)
+

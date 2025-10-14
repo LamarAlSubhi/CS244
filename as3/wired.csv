@@ -1,0 +1,7 @@
+runid,case,txqueuelen,tx_ring,rx_ring
+1,baseline,1000,256,256
+2,kernel-small,50,256,256
+3,kernel-large,2000,256,256
+4,tx-small,500,64,256
+5,tx-large,500,512,256
+6,worst-combo,2000,512,256
