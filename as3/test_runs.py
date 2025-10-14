@@ -26,9 +26,14 @@ import argparse
 
 # ---------- PARAMS  ----------
 SERVER_IP   = "10.240.175.138" # my mac
-WIRED_CSV    = "wired.csv"
-WIRELESS_CSV = "wireless.csv"
-LOGS_DIR    =  Path("/logs")
+
+BASE_DIR = Path(__file__).resolve().parent
+LOGS_DIR = BASE_DIR / "as3" / "logs"
+WIRED_CSV = str(BASE_DIR / "wired.csv")
+WIRELESS_CSV = str(BASE_DIR / "wireless.csv")
+
+print(f"[INFO] LOGS_DIR = {LOGS_DIR}")
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
 WIRED_IFACE    = "enp0s3"   # VirtualBox e1000
 WIRELESS_IFACE = "wlo1"   # OMEN host Wi-Fi
