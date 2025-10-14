@@ -28,7 +28,7 @@ import argparse
 SERVER_IP   = "10.240.175.138" # my mac
 
 BASE_DIR = Path(__file__).resolve().parent
-LOGS_DIR = BASE_DIR / "as3" / "logs"
+LOGS_DIR = BASE_DIR / "logs"
 WIRED_CSV = str(BASE_DIR / "wired.csv")
 WIRELESS_CSV = str(BASE_DIR / "wireless.csv")
 
