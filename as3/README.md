@@ -33,5 +33,5 @@
 - TX/RX errors/drops
 
 
-
-
+## issues running into: 
+- My omen's driver, r8169 (Realtek), never implemented set_ring, so it doesn’t matter which kernel I use
