@@ -5,6 +5,6 @@ run,iface,case,txqueuelen,tx_ring,rx_ring,avg_tput_gbps,max_tput_gbps,avg_rtt_ms
 4-enp0s3-tx-small,enp0s3,tx-small,500,64,256,0.683,0.778,69.42,114.0
 5-enp0s3-tx-large,enp0s3,tx-large,500,512,256,0.696,0.777,72.81,116.0
 6-enp0s3-worst-combo,enp0s3,worst-combo,2000,512,256,0.684,0.752,34.41,102.0
-7-wlo1-baseline,wlo1,baseline,1000,,,0.531,0.668,29.84,102.0
-8-wlo1-kernel-small,wlo1,kernel-small,50,,,0.558,0.632,31.27,99.9
-9-wlo1-kernel-large,wlo1,kernel-large,500,,,0.545,0.673,29.93,95.3
+7-wlo1-baseline,wlo1,baseline,1000,,,0.716,0.854,26.49,40.2
+8-wlo1-kernel-small,wlo1,kernel-small,50,,,0.747,0.862,22.44,33.4
+9-wlo1-kernel-large,wlo1,kernel-large,2000,,,0.766,0.851,21.89,30.6
