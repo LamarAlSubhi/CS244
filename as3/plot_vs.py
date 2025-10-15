@@ -57,20 +57,26 @@ def main():
                 filt=lambda r: "enp0s3" in r["run"],
                 title="wired: avg throughput vs txqueuelen (pfifo limit)",
                 out="tput_vs_txqlen_wired.png")
-
+    
+    # wired: p95 rtt vs txqueuelen size
+    scatter_x_y(rows, "txqueuelen", "p95_rtt_ms",
+                filt=lambda r: "enp0s3" in r.get("run", ""),
+                title="wired: p95 rtt vs txqueuelen (pfifo limit)",
+                out="p95rtt_vs_txqlen_wired.png")
+    
     # wireless: throughput vs txqueuelen
     scatter_x_y(rows, "txqueuelen", "avg_tput_gbps",
                 filt=lambda r: "wlo1" in r["run"],
                 title="wireless: avg throughput vs txqueuelen",
                 out="tput_vs_txqlen_wireless.png")
 
-    # wired: p95 RTT vs throughput
+    # wired: p95 rtt vs throughput
     scatter_x_y(rows, "avg_tput_gbps", "p95_rtt_ms",
                 filt=lambda r: "enp0s3" in r["run"],
                 title="wired: p95 rtt vs throughput",
                 out="p95rtt_vs_tput_wired.png")
     
-    # wireless: p95 RTT vs throughput
+    # wireless: p95 rtt vs throughput
     scatter_x_y(rows, "avg_tput_gbps", "p95_rtt_ms",
                 filt=lambda r: "wlo1" in r["run"],
                 title="wireless: p95 rtt vs throughput",
