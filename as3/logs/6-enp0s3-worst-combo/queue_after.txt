@@ -1,0 +1,12 @@
+=== ip -s link (after) ===
+2: enp0s3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo state UP mode DEFAULT group default qlen 2000
+    link/ether 08:00:27:8d:d8:19 brd ff:ff:ff:ff:ff:ff
+    RX:   bytes  packets errors dropped  missed   mcast           
+       38870062   566489      0     330       0    1868 
+    TX:   bytes  packets errors dropped carrier collsns           
+    25530093693 19581156      0       5       0       0 
+
+=== tc -s qdisc (after) ===
+qdisc pfifo 8001: root refcnt 2 limit 2000p
+ Sent 25529845540 bytes 19580723 pkt (dropped 0, overlimits 0 requeues 11868) 
+ backlog 0b 0p requeues 11868
