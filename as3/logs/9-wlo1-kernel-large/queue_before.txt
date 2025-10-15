@@ -1,0 +1,13 @@
+=== ip -s link (before) ===
+3: wlo1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo state UP mode DORMANT group default qlen 50
+    link/ether 98:3b:8f:96:0a:78 brd ff:ff:ff:ff:ff:ff
+    RX:  bytes packets errors dropped  missed   mcast           
+      17119442  248418      0     296       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+         85763     365      0       0       0       0 
+    altname wlp0s20f3
+
+=== tc -s qdisc (before) ===
+qdisc pfifo 8001: root refcnt 2 limit 50p
+ Sent 2170 bytes 32 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
